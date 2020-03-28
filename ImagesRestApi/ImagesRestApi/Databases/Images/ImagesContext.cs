@@ -22,13 +22,13 @@ namespace ImagesRestApi.Databases.Images
             optionsBuilder.UseInMemoryDatabase("Images");
         }
 
-        protected override void OnModelCreating(ModelBuilder bldr)
+        protected override void OnModelCreating(ModelBuilder builder)
         {
-            bldr.Entity<Image>()
+            builder.Entity<Image>()
               .HasData(new
               {
                   Id = new Guid("00000000-0000-0000-0000-000000000001"),//32:0 00000000-0000-0000-0000-000000000000 //Guid.NewGuid(),
-                  Path = _config.GetValue<string>("StoredFilesPath") + "00000000-0000-0000-0000-000000000001\\original.jpg",//@"C:\Games\PetProjects\TestTasks\ImagesRestApi\ImagesRestApi\Images\lights.jpg",
+                  Path = _config.GetValue<string>("StoredFilesPath") + "\\00000000-0000-0000-0000-000000000001\\original.jpg",//@"C:\Games\PetProjects\TestTasks\ImagesRestApi\ImagesRestApi\Images\lights.jpg",
                   //Name = "lights"
               });
         }
