@@ -1,12 +1,10 @@
-﻿using AutoMapper;
-using ImagesRestApi.Models;
+﻿using ImagesRestApi.Models;
 using ImagesRestApi.Repositories.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using ImagesRestApi.DTO;
 using ImagesRestApi.Services.Interfaces;
@@ -39,7 +37,7 @@ namespace ImagesRestApi.Services
             _permittedExtensions = config.GetSection("PermittedExtensions").AsEnumerable()
                 .Where(p => p.Value != null)
                 .Select(p => p.Value)
-                .ToList(); ;
+                .ToList();
         }
 
         public async Task<Image> GetImageAsync(Guid id)
@@ -100,7 +98,7 @@ namespace ImagesRestApi.Services
                 Directory.CreateDirectory(fileFolder);
                 var filePath = $"{fileFolder}\\{trustedFileNameForFileStorage}";//Path.Combine(targetFilePath, $"\\{fileId}\\", trustedFileNameForFileStorage);
                 
-                await using (var targetStream = System.IO.File.Create(filePath))
+                await using (var targetStream = File.Create(filePath))
                     await targetStream.WriteAsync(streamedFileContent);
                 return new ImageDTO()
                 {
