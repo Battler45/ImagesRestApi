@@ -12,7 +12,7 @@ namespace ImagesRestApi.Profiles
         public ImagesProfile()
         {
             CreateMap<Databases.Images.Entities.Image, ImageDTO>()
-                .ReverseMap();;
+                .ReverseMap();
         }
     }
 }

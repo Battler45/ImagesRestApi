@@ -28,8 +28,8 @@ namespace ImagesRestApi.Databases.Images
               .HasData(new
               {
                   Id = new Guid("00000000-0000-0000-0000-000000000001"),//32:0 00000000-0000-0000-0000-000000000000 //Guid.NewGuid(),
-                  Path = @"C:\Games\PetProjects\TestTasks\ImagesRestApi\ImagesRestApi\Images\lights.jpg",
-                  Name = "lights"
+                  Path = _config.GetValue<string>("StoredFilesPath") + "00000000-0000-0000-0000-000000000001\\original.jpg",//@"C:\Games\PetProjects\TestTasks\ImagesRestApi\ImagesRestApi\Images\lights.jpg",
+                  //Name = "lights"
               });
         }
     }

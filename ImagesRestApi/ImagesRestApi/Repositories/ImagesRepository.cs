@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -29,12 +30,30 @@ namespace ImagesRestApi.Repositories
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
-
-
         public async Task<ImageDTO> GetImageAsync(Guid id)
         {
             var dbImage = await Images.SingleOrDefaultAsync(i => i.Id == id);
             return _mapper.Map<ImageDTO>(dbImage);
+        }
+        public async Task<int> SaveImages(IEnumerable<ImageDTO> imagesDto)
+        {
+            var images = _mapper.Map<IEnumerable<Image>>(imagesDto);
+            _context.AddRange(images);
+            return await _context.SaveChangesAsync();
+        }
+        public async Task<int> DeleteImage(Guid imageId)
+        {
+            var image = await Images.SingleOrDefaultAsync(i => i.Id == imageId);
+            if (image == null) return 0;
+            _context.Remove(image);
+            return await _context.SaveChangesAsync();
+        }
+        public async Task<int> DeleteImages(IEnumerable<Guid> imagesIds)
+        {
+            var images = await Images.Where(i => imagesIds.Contains(i.Id)).ToListAsync();
+            if (!images.Any()) return 0;
+            _context.RemoveRange(images);
+            return await _context.SaveChangesAsync();
         }
     }
 }
