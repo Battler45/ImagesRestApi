@@ -103,18 +103,22 @@ namespace ImagesRestApi.Services
                 return new ImageDTO()
                 {
                     Id = fileId,
-                    Path = trustedFileNameForFileStorage
+                    Path = filePath
                 };
             }
         }
 
         public async Task<int> DeleteImages(IEnumerable<Guid> imagesIds)
         {
+            var images = await _images.GetImagesAsync(imagesIds);
+            images.ForEach(i => Directory.Delete(Path.GetDirectoryName(i.Path), true));
             return await _images.DeleteImages(imagesIds);
         }
 
         public async Task<int> DeleteImage(Guid imageId)
         {
+            var image = await _images.GetImageAsync(imageId);
+            Directory.Delete(Path.GetDirectoryName(image.Path), true);
             return await _images.DeleteImage(imageId);
         }
     }

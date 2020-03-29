@@ -56,7 +56,8 @@ namespace ImagesRestApi.Controllers
             return deletedImagesCount != ids.Count ? NotFound($"{deletedImagesCount} has been deleted instead {ids.Count}") : StatusCode(StatusCodes.Status204NoContent, "all images has been deleted");
         }
 
-        // The following upload methods:
+        #region snippet_UploadImages
+        // The following upload method:
         //
         // 1. Disable the form value model binding to take control of handling 
         //    potentially large files.
@@ -65,15 +66,12 @@ namespace ImagesRestApi.Controllers
         //    don't want to read the request body early, the tokens are sent via 
         //    headers. The anti forgery token filter first looks for tokens in 
         //    the request header and then falls back to reading the body.
-        #region snippet_UploadPhysical
-
         [HttpPost]
         [DisableFormValueModelBinding]
         //[ValidateAntiForgeryToken]
         public async Task<IActionResult> Post()
         {
-            if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType))
-                return BadRequest("Content type is not multipart");
+            if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType)) return BadRequest("Content type is not multipart");
             List<ImageDTO> images;
             try
             {
@@ -96,14 +94,36 @@ namespace ImagesRestApi.Controllers
             }).ToList();
             return images.Count == 1 ? Created(imagesIdsUris.First().uri, imagesIdsUris.First().Id) : StatusCode(StatusCodes.Status201Created, imagesIdsUris);
         }
-        #endregion
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Put(Guid id)
+        [HttpPut]
+        [DisableFormValueModelBinding]
+        //[ValidateAntiForgeryToken]
+        public async Task<IActionResult> Put()
         {
+            if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType)) return BadRequest("Content type is not multipart");
+            List<ImageDTO> images;
+            try
+            {
+                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType), FormOptions.DefaultMultipartBoundaryLengthLimit);
+                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+                images = await _service.SaveImages(reader);
+            }
+            catch (InvalidDataException e)
+            {
+                return BadRequest(e.Message);
+            }
+            catch (Exception)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+            var imagesIdsUris = images.Select(i => new
+            {
+                i.Id,
+                uri = _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new { i.Id })
+            }).ToList();
+            return images.Count == 1 ? Created(imagesIdsUris.First().uri, imagesIdsUris.First().Id) : StatusCode(StatusCodes.Status201Created, imagesIdsUris);
             throw new NotImplementedException();
         }
-
-
+        #endregion
     }
 }
