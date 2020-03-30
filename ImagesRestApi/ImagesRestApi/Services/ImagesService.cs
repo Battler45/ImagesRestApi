@@ -21,19 +21,26 @@ namespace ImagesRestApi.Services
     {
         private readonly IImagesRepository _images;
         private readonly ILogger<ImagesService> _logger;
+
+        //wrappers
         private readonly IDirectoryWrapper _directory;
         private readonly IFileWrapper _file;
+        private readonly IPathWrapper _path;
+        private readonly IContentDispositionHeaderValueWrapper _contentDispositionHeaderValue;
 
         private readonly List<string> _permittedExtensions;
         private readonly long _fileSizeLimit;
         private readonly string _targetFilePath;
 
-        public ImagesService(IImagesRepository images, ILogger<ImagesService> logger, IConfiguration config, IDirectoryWrapper directory, IFileWrapper _file)
+        public ImagesService(IImagesRepository images, ILogger<ImagesService> logger, IConfiguration config, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path, 
+            IContentDispositionHeaderValueWrapper contentDispositionHeaderValue)
         {
             _images = images ?? throw new ArgumentNullException(nameof(images)); 
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _directory = directory ?? throw new ArgumentNullException(nameof(directory));
-            _file = _file ?? throw new ArgumentNullException(nameof(_file));
+            _file = file ?? throw new ArgumentNullException(nameof(file));
+            _path = path ?? throw new ArgumentNullException(nameof(path));
+            _contentDispositionHeaderValue = contentDispositionHeaderValue ?? throw new ArgumentNullException(nameof(contentDispositionHeaderValue));
 
             _fileSizeLimit = config.GetValue<long>("FileSizeLimit");
 
@@ -65,7 +72,7 @@ namespace ImagesRestApi.Services
             var section = await requestReader.ReadNextSectionAsync();
             while (section != null)
             {
-                var image = await SaveSection(section, _permittedExtensions, _fileSizeLimit, _targetFilePath, _directory, _file);
+                var image = await SaveSection(section, _permittedExtensions, _fileSizeLimit, _targetFilePath, _directory, _file, _path, _contentDispositionHeaderValue);
                 if (image != null)
                 {
                     images.Add(image);
@@ -75,9 +82,10 @@ namespace ImagesRestApi.Services
             }
             await _images.SaveImages(images);
             return images;
-            static async Task<ImageDTO> SaveSection(MultipartSection section, List<string> permittedExtensions, long fileSizeLimit, string targetFilePath, IDirectoryWrapper directory, IFileWrapper file)
+            static async Task<ImageDTO> SaveSection(MultipartSection section, List<string> permittedExtensions, long fileSizeLimit, string targetFilePath, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path,
+                IContentDispositionHeaderValueWrapper contentDispositionHeaderValue)
             {
-                var hasContentDispositionHeader = ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
+                var hasContentDispositionHeader = contentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
                 if (!hasContentDispositionHeader) return null;
 
                 // This check assumes that there's a file
@@ -88,7 +96,7 @@ namespace ImagesRestApi.Services
 
                 // Don't trust the file name sent by the client. To display
                 var fileId = Guid.NewGuid();
-                var trustedFileNameForFileStorage = $"original{Path.GetExtension(contentDisposition.FileName.Value)}";
+                var trustedFileNameForFileStorage = $"original{path.GetExtension(contentDisposition.FileName.Value)}";
 
                 // **WARNING!**
                 // In the following example, the file is saved without
@@ -117,14 +125,14 @@ namespace ImagesRestApi.Services
         public async Task<int> DeleteImages(IEnumerable<Guid> imagesIds)
         {
             var images = await _images.GetImagesAsync(imagesIds);
-            images.ForEach(i => _directory.Delete(Path.GetDirectoryName(i.Path), true));
+            images.ForEach(i => _directory.Delete(_path.GetDirectoryName(i.Path), true));
             return await _images.DeleteImages(imagesIds);
         }
 
         public async Task<int> DeleteImage(Guid imageId)
         {
             var image = await _images.GetImageAsync(imageId);
-            _directory.Delete(Path.GetDirectoryName(image.Path), true);
+            _directory.Delete(_path.GetDirectoryName(image.Path), true);
             return await _images.DeleteImage(imageId);
         }
     }

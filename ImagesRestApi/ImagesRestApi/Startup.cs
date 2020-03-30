@@ -31,6 +31,8 @@ namespace ImagesRestApi
             //wrappers
             services.AddTransient<IDirectoryWrapper, DirectoryWrapper>();
             services.AddTransient<IFileWrapper, FileWrapper>();
+            services.AddTransient<IPathWrapper, PathWrapper>();
+            services.AddTransient<IContentDispositionHeaderValueWrapper, ContentDispositionHeaderValueWrapper>();
 
         }
 
