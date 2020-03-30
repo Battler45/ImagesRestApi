@@ -9,6 +9,7 @@ using System;
 using ImagesRestApi.Repositories.Interfaces;
 using ImagesRestApi.Services;
 using ImagesRestApi.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImagesRestApi
 {
@@ -20,7 +21,7 @@ namespace ImagesRestApi
             services.AddControllers();
             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-            services.AddDbContext<ImagesContext>();
+            services.AddDbContext<ImagesContext>(options => options.UseInMemoryDatabase("Images"));
 
             services.AddScoped<IImagesRepository, ImagesRepository>();
 

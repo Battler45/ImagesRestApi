@@ -7,23 +7,19 @@ namespace ImagesRestApi.Databases.Images
 {
     public sealed class ImagesContext : DbContext
     {
-        private readonly IConfiguration _config;
+        //private readonly IConfiguration _config;
 
-        public ImagesContext(DbContextOptions options, IConfiguration config) : base(options)
+        public ImagesContext(DbContextOptions options/*, IConfiguration config*/) : base(options)
         {
-            _config = config;
+            //_config = config;
             Database.EnsureCreated();
         }
 
         public DbSet<Image> Images { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseInMemoryDatabase("Images");
-        }
-
         protected override void OnModelCreating(ModelBuilder builder)
         {
+            /*
             builder.Entity<Image>()
               .HasData(new
               {
@@ -31,6 +27,7 @@ namespace ImagesRestApi.Databases.Images
                   Path = _config.GetValue<string>("StoredFilesPath") + "\\00000000-0000-0000-0000-000000000001\\original.jpg",//@"C:\Games\PetProjects\TestTasks\ImagesRestApi\ImagesRestApi\Images\lights.jpg",
                   //Name = "lights"
               });
+              */
         }
     }
 }

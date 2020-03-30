@@ -11,6 +11,7 @@ using ImagesRestApi.Services.Interfaces;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using ImagesRestApi.Utilities;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Net.Http.Headers;
 
 namespace ImagesRestApi.Services
@@ -97,7 +98,7 @@ namespace ImagesRestApi.Services
                 var fileFolder = $"{targetFilePath}\\{fileId}";
                 Directory.CreateDirectory(fileFolder);
                 var filePath = $"{fileFolder}\\{trustedFileNameForFileStorage}";//Path.Combine(targetFilePath, $"\\{fileId}\\", trustedFileNameForFileStorage);
-                
+                //DirectoryInfo
                 await using (var targetStream = File.Create(filePath))
                     await targetStream.WriteAsync(streamedFileContent);
                 return new ImageDTO()
