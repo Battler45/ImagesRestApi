@@ -11,6 +11,7 @@ using ImagesRestApi.Services.Interfaces;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using ImagesRestApi.Utilities;
+using ImagesRestApi.Wrappers;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Net.Http.Headers;
 
@@ -20,15 +21,19 @@ namespace ImagesRestApi.Services
     {
         private readonly IImagesRepository _images;
         private readonly ILogger<ImagesService> _logger;
+        private readonly IDirectoryWrapper _directory;
+        private readonly IFileWrapper _file;
 
         private readonly List<string> _permittedExtensions;
         private readonly long _fileSizeLimit;
         private readonly string _targetFilePath;
 
-        public ImagesService(IImagesRepository images, ILogger<ImagesService> logger, IConfiguration config)
+        public ImagesService(IImagesRepository images, ILogger<ImagesService> logger, IConfiguration config, IDirectoryWrapper directory, IFileWrapper _file)
         {
             _images = images ?? throw new ArgumentNullException(nameof(images)); 
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _directory = directory ?? throw new ArgumentNullException(nameof(directory));
+            _file = _file ?? throw new ArgumentNullException(nameof(_file));
 
             _fileSizeLimit = config.GetValue<long>("FileSizeLimit");
 
@@ -44,8 +49,8 @@ namespace ImagesRestApi.Services
         public async Task<Image> GetImageAsync(Guid id)
         {
             var imageDto = await _images.GetImageAsync(id);
-            if (imageDto == null || Directory.Exists(imageDto.Path)) return null;
-            var imageFile = await File.ReadAllBytesAsync(imageDto.Path);
+            if (imageDto == null || _directory.Exists(imageDto.Path)) return null;
+            var imageFile = await _file.ReadAllBytesAsync(imageDto.Path);
             return new Image()
             {
                 //Name = imageDto.Name,
@@ -60,7 +65,7 @@ namespace ImagesRestApi.Services
             var section = await requestReader.ReadNextSectionAsync();
             while (section != null)
             {
-                var image = await SaveSection(section, _permittedExtensions, _fileSizeLimit, _targetFilePath);
+                var image = await SaveSection(section, _permittedExtensions, _fileSizeLimit, _targetFilePath, _directory, _file);
                 if (image != null)
                 {
                     images.Add(image);
@@ -70,7 +75,7 @@ namespace ImagesRestApi.Services
             }
             await _images.SaveImages(images);
             return images;
-            static async Task<ImageDTO> SaveSection(MultipartSection section, List<string> permittedExtensions, long fileSizeLimit, string targetFilePath)
+            static async Task<ImageDTO> SaveSection(MultipartSection section, List<string> permittedExtensions, long fileSizeLimit, string targetFilePath, IDirectoryWrapper directory, IFileWrapper file)
             {
                 var hasContentDispositionHeader = ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
                 if (!hasContentDispositionHeader) return null;
@@ -96,10 +101,10 @@ namespace ImagesRestApi.Services
                 var streamedFileContent = await FileHelpers.ProcessStreamedFile(section, contentDisposition, permittedExtensions, fileSizeLimit);
 
                 var fileFolder = $"{targetFilePath}\\{fileId}";
-                Directory.CreateDirectory(fileFolder);
-                var filePath = $"{fileFolder}\\{trustedFileNameForFileStorage}";//Path.Combine(targetFilePath, $"\\{fileId}\\", trustedFileNameForFileStorage);
-                //DirectoryInfo
-                await using (var targetStream = File.Create(filePath))
+
+                directory.CreateDirectory(fileFolder);
+                var filePath = $"{fileFolder}\\{trustedFileNameForFileStorage}";
+                await using (var targetStream = file.Create(filePath))
                     await targetStream.WriteAsync(streamedFileContent);
                 return new ImageDTO()
                 {
@@ -112,14 +117,14 @@ namespace ImagesRestApi.Services
         public async Task<int> DeleteImages(IEnumerable<Guid> imagesIds)
         {
             var images = await _images.GetImagesAsync(imagesIds);
-            images.ForEach(i => Directory.Delete(Path.GetDirectoryName(i.Path), true));
+            images.ForEach(i => _directory.Delete(Path.GetDirectoryName(i.Path), true));
             return await _images.DeleteImages(imagesIds);
         }
 
         public async Task<int> DeleteImage(Guid imageId)
         {
             var image = await _images.GetImageAsync(imageId);
-            Directory.Delete(Path.GetDirectoryName(image.Path), true);
+            _directory.Delete(Path.GetDirectoryName(image.Path), true);
             return await _images.DeleteImage(imageId);
         }
     }

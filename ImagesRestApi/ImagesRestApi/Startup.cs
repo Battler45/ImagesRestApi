@@ -9,6 +9,7 @@ using System;
 using ImagesRestApi.Repositories.Interfaces;
 using ImagesRestApi.Services;
 using ImagesRestApi.Services.Interfaces;
+using ImagesRestApi.Wrappers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImagesRestApi
@@ -26,6 +27,11 @@ namespace ImagesRestApi
             services.AddScoped<IImagesRepository, ImagesRepository>();
 
             services.AddScoped<IImagesService, ImagesService>();
+
+            //wrappers
+            services.AddTransient<IDirectoryWrapper, DirectoryWrapper>();
+            services.AddTransient<IFileWrapper, FileWrapper>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

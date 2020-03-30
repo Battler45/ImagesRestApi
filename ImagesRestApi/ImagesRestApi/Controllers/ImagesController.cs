@@ -100,6 +100,7 @@ namespace ImagesRestApi.Controllers
         //[ValidateAntiForgeryToken]
         public async Task<IActionResult> Put()
         {
+            throw new NotImplementedException();
             if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType)) return BadRequest("Content type is not multipart");
             List<ImageDTO> images;
             try
@@ -122,7 +123,6 @@ namespace ImagesRestApi.Controllers
                 uri = _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new { i.Id })
             }).ToList();
             return images.Count == 1 ? Created(imagesIdsUris.First().uri, imagesIdsUris.First().Id) : StatusCode(StatusCodes.Status201Created, imagesIdsUris);
-            throw new NotImplementedException();
         }
         #endregion
     }
