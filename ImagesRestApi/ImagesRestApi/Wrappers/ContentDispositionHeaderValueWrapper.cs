@@ -3,6 +3,10 @@ using Microsoft.Net.Http.Headers;
 
 namespace ImagesRestApi.Wrappers
 {
+    public class ContentDispositionHeaderValueFabric
+    {
+
+    }
     public interface IContentDispositionHeaderValueWrapper
     {
         bool TryParse(StringSegment input, out ContentDispositionHeaderValue parsedValue);
