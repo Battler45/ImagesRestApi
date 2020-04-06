@@ -10,12 +10,10 @@ namespace ImagesRestApi.Filters
     {
         public void OnResourceExecuting(ResourceExecutingContext context)
         {
-
             var factories = context.ValueProviderFactories;
             factories.RemoveType<FormValueProviderFactory>();
             factories.RemoveType<FormFileValueProviderFactory>();
             factories.RemoveType<JQueryFormValueProviderFactory>();
-
         }
 
         public void OnResourceExecuted(ResourceExecutedContext context)

@@ -10,6 +10,7 @@ using ImagesRestApi.Repositories.Interfaces;
 using ImagesRestApi.Services;
 using ImagesRestApi.Services.Interfaces;
 using ImagesRestApi.Wrappers;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImagesRestApi
@@ -27,12 +28,14 @@ namespace ImagesRestApi
             services.AddScoped<IImagesRepository, ImagesRepository>();
 
             services.AddScoped<IImagesService, ImagesService>();
-
+            services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
+            
             //wrappers
-            services.AddTransient<IDirectoryWrapper, DirectoryWrapper>();
-            services.AddTransient<IFileWrapper, FileWrapper>();
-            services.AddTransient<IPathWrapper, PathWrapper>();
-            services.AddTransient<IContentDispositionHeaderValueWrapper, ContentDispositionHeaderValueWrapper>();
+            services.AddSingleton<IDirectoryWrapper, DirectoryWrapper>();
+            services.AddSingleton<IFileWrapper, FileWrapper>();
+            services.AddSingleton<IPathWrapper, PathWrapper>();
+            services.AddSingleton<IContentDispositionHeaderValueWrapper, ContentDispositionHeaderValueWrapper>();
+            
 
         }
 
@@ -47,6 +50,8 @@ namespace ImagesRestApi
             {
                 app.UseHttpsRedirection();
             }
+
+            //app.UseStaticFiles();
 
             app.UseRouting();
 

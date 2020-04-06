@@ -2,13 +2,12 @@
 
 namespace ImagesRestApi.Models
 {
-    public class Image
+    public class Image: File
     {
         //public string Name { get; set; }
         public Guid Id { get; set; }
-        //[Required]
-        //[MinLength(12)]
-        public byte[] File { get; set; }
+
+        public string Uri { get; set; }
 
         public Image DeleteMetadata()
         {

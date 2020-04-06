@@ -43,7 +43,28 @@ namespace ImagesRestApi.Repositories
         public async Task<int> SaveImages(IEnumerable<ImageDTO> imagesDto)
         {
             var images = _mapper.Map<IEnumerable<Image>>(imagesDto);
-            _context.AddRange(images);
+            await _context.AddRangeAsync(images);
+            return await _context.SaveChangesAsync();
+        }
+        public async Task<int> SaveImage(ImageDTO imageDto)
+        {
+            var image = _mapper.Map<Image>(imageDto);
+            await _context.AddAsync(image);
+            return await _context.SaveChangesAsync();
+        }
+        public async Task<int> UpdateImages(IEnumerable<ImageDTO> imagesDto)
+        {
+            var ids = imagesDto.Select(i => i.Id).ToList();
+            var dbImages = await Images.Where(i => ids.Contains(i.Id)).ToListAsync();
+            var images = _mapper.Map(imagesDto, dbImages);
+            //_context.UpdateRange(images);
+            return await _context.SaveChangesAsync();
+        }
+        public async Task<int> UpdateImage(ImageDTO imageDto)
+        {
+            var dbImage = await Images.Where(i => i.Id == imageDto.Id).SingleOrDefaultAsync();
+            var image = _mapper.Map(imageDto, dbImage);
+            //_context.Update(image);
             return await _context.SaveChangesAsync();
         }
         public async Task<int> DeleteImage(Guid imageId)

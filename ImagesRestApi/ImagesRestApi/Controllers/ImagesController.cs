@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using ImagesRestApi.DTO;
 using ImagesRestApi.Filters;
@@ -15,6 +16,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
+using Newtonsoft.Json;
+using File = ImagesRestApi.Models.File;
 
 namespace ImagesRestApi.Controllers
 {
@@ -33,13 +36,17 @@ namespace ImagesRestApi.Controllers
             _linkGenerator = linkGenerator ?? throw new ArgumentNullException(nameof(linkGenerator));
         }
 
+        #region  Get
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(Guid id)
         {
             var image = await _service.GetImageAsync(id);
             if (image == null) return NotFound();
-            return File(image.File, "image/jpeg");
+            return File(image.Content, image.ContentType);
         }
+        #endregion
+
+        #region  Delete
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
@@ -56,7 +63,11 @@ namespace ImagesRestApi.Controllers
             return deletedImagesCount != ids.Count ? NotFound($"{deletedImagesCount} has been deleted instead {ids.Count}") : StatusCode(StatusCodes.Status204NoContent, "all images has been deleted");
         }
 
-        #region snippet_UploadImages
+
+
+        #endregion
+
+        #region Post
         // The following upload method:
         //
         // 1. Disable the form value model binding to take control of handling 
@@ -68,16 +79,24 @@ namespace ImagesRestApi.Controllers
         //    the request header and then falls back to reading the body.
         [HttpPost]
         [DisableFormValueModelBinding]
-        //[ValidateAntiForgeryToken]
         public async Task<IActionResult> Post()
         {
-            if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType)) return BadRequest("Content type is not multipart");
-            List<ImageDTO> images;
+            List<ImageDTO> imagesDto;
             try
             {
-                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType), FormOptions.DefaultMultipartBoundaryLengthLimit);
-                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-                images = await _service.SaveImages(reader);
+                if (MultipartRequestHelper.IsMultipartContentType(Request.ContentType))
+                {
+                    var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType),
+                        FormOptions.DefaultMultipartBoundaryLengthLimit);
+                    var reader = new MultipartReader(boundary, Request.Body);
+                    imagesDto = await _service.SaveImages(reader);
+                }
+                else if (Request.ContentType.Contains("image/"))
+                {
+                    var image = await _service.SaveImage(Request.BodyReader, Request.ContentType);
+                    imagesDto = new List<ImageDTO>() {image};
+                }
+                else return BadRequest("Expected a multipart/ or image/ request");
             }
             catch (InvalidDataException e)
             {
@@ -87,27 +106,68 @@ namespace ImagesRestApi.Controllers
             {
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
-            var imagesIdsUris = images.Select(i => new
-            {
-                i.Id,
-                uri = _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new { i.Id })
-            }).ToList();
-            return images.Count == 1 ? Created(imagesIdsUris.First().uri, imagesIdsUris.First().Id) : StatusCode(StatusCodes.Status201Created, imagesIdsUris);
+            var images = ToImages(imagesDto);
+            return images.Count == 1 ? Created(images.First().Uri, images.First().Id) : StatusCode(StatusCodes.Status201Created, images);
         }
 
-        [HttpPut]
-        [DisableFormValueModelBinding]
-        //[ValidateAntiForgeryToken]
-        public async Task<IActionResult> Put()
+
+        [HttpPost("url")]
+        public async Task<IActionResult> Post([FromBody]string url)
         {
-            throw new NotImplementedException();
-            if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType)) return BadRequest("Content type is not multipart");
-            List<ImageDTO> images;
+            var file = new File();
+            using (var client = new HttpClient())
+            {
+                using var result = await client.GetAsync(url);
+                if (result.IsSuccessStatusCode)
+                    file.Content = await result.Content.ReadAsByteArrayAsync();
+                else
+                    return BadRequest("");
+            }
+
+            var dto = await _service.SaveImage(file);
+            return Created(GenerateUri(dto), dto.Id);
+            //return File(file, "image/jpg");
+        }
+        [HttpPost("urls")]
+        public async Task<IActionResult> Post([FromBody] List<string> urls)
+        {
+            var files = new List<File>();
+            using (var client = new HttpClient())
+            {
+                foreach (var url in urls)
+                {
+                    using var result = await client.GetAsync(url);
+                    if (result.IsSuccessStatusCode)
+                        files.Add(new File() {Content = await result.Content.ReadAsByteArrayAsync()});
+                    else
+                        return BadRequest("");
+                }
+                
+            }
+            var dto = await _service.SaveImages(files); 
+            var images = ToImages(dto);
+            return StatusCode(StatusCodes.Status201Created, images);
+        }
+        #endregion
+
+        #region Put
+        [HttpPut("{id}")]
+        [DisableFormValueModelBinding]
+        public async Task<IActionResult> Put(Guid id)
+        {
+            ImageDTO imageDto;
             try
             {
-                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType), FormOptions.DefaultMultipartBoundaryLengthLimit);
-                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-                images = await _service.SaveImages(reader);
+                if (MultipartRequestHelper.IsMultipartContentType(Request.ContentType))
+                {
+                    var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType),
+                        FormOptions.DefaultMultipartBoundaryLengthLimit);
+                    var reader = new MultipartReader(boundary, Request.Body);
+                    imageDto = await _service.UpdateImage(reader, id);
+                }
+                else if (Request.ContentType.Contains("image/"))
+                    imageDto = await _service.UpdateImage(Request.BodyReader, id, Request.ContentType);
+                else return BadRequest("Expected a multipart/ or image/ request");
             }
             catch (InvalidDataException e)
             {
@@ -117,13 +177,61 @@ namespace ImagesRestApi.Controllers
             {
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
-            var imagesIdsUris = images.Select(i => new
-            {
-                i.Id,
-                uri = _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new { i.Id })
-            }).ToList();
-            return images.Count == 1 ? Created(imagesIdsUris.First().uri, imagesIdsUris.First().Id) : StatusCode(StatusCodes.Status201Created, imagesIdsUris);
+            return Created(GenerateUri(imageDto), imageDto.Id);
         }
+
         #endregion
+
+        #region Base64
+        /// <summary>
+        /// I don't want to optimize this two methods(Base64) using streams because base64 is not optimal format to send files
+        /// </summary>
+        /*
+        [HttpPost("Base64")]
+        public async Task<IActionResult> PostBase64([FromBody] Base64File model)
+        {
+            var file = new File(Convert.FromBase64String(model.Base64));
+            var image = await _service.SaveImage(file);
+            var uri = GenerateUri(image);
+            return Created(uri, new Image()
+            {
+                Id = image.Id,
+                Uri = uri
+            });
+        }
+        */
+        [HttpPost("Base64")]
+        public async Task<IActionResult> PostBase64([FromBody] List<Base64File> models)
+        {
+            var files = new List<File>();
+            models.ForEach(m => files.Add(new File(){
+                Content = Convert.FromBase64String(m.Base64)
+            }));
+            var imagesDto = await _service.SaveImages(files);
+            var images = ToImages(imagesDto);
+            return StatusCode(StatusCodes.Status201Created, images);
+        }
+        [HttpPut("Base64")]
+        public async Task<IActionResult> PutBase64([FromBody] List<Base64Image> models)
+        {
+            var images = new List<Image>();
+            models.ForEach(m => images.Add(new Image()
+            {
+                Id = m.Id,
+                Content = Convert.FromBase64String(m.Base64)
+            }));
+            await _service.UpdateImages(images);
+            return StatusCode(StatusCodes.Status204NoContent);
+        }
+        //UpdateImages
+        #endregion
+
+        private string GenerateUri(ImageDTO image) =>
+            _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new {image.Id});
+        private List<Image> ToImages(List<ImageDTO> images) => images.Select(i => new Image
+        {
+            Id = i.Id,
+            Uri = GenerateUri(i)
+        }).ToList();
     }
 }
