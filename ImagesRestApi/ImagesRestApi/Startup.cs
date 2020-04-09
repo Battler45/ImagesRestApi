@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using ImagesRestApi.Controllers;
 using ImagesRestApi.Repositories.Interfaces;
 using ImagesRestApi.Services;
 using ImagesRestApi.Services.Interfaces;
@@ -29,7 +30,9 @@ namespace ImagesRestApi
 
             services.AddScoped<IImagesService, ImagesService>();
             services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
-            
+            services.AddHttpClient();
+
+
             //wrappers
             services.AddSingleton<IDirectoryWrapper, DirectoryWrapper>();
             services.AddSingleton<IFileWrapper, FileWrapper>();

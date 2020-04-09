@@ -93,7 +93,7 @@ namespace ImagesRestApi.Controllers
                 else if (Request.ContentType.Contains("image/"))
                 {
                     var image = await _service.SaveImage(Request.BodyReader, Request.ContentType);
-                    imagesDto = new List<ImageDTO>() {image};
+                    imagesDto = new List<ImageDTO>() { image };
                 }
                 else return BadRequest("Expected a multipart/ or image/ request");
             }
@@ -111,39 +111,42 @@ namespace ImagesRestApi.Controllers
 
 
         [HttpPost("url")]
-        public async Task<IActionResult> Post([FromBody]string url)
+        public async Task<IActionResult> Post([FromBody]string url, [FromServices] IHttpClientFactory httpClientFactory)
         {
             var file = new File();
-            using (var client = new HttpClient())
-            {
-                using var result = await client.GetAsync(url);
-                if (result.IsSuccessStatusCode)
-                    file.Content = await result.Content.ReadAsByteArrayAsync();
-                else
-                    return BadRequest("");
-            }
+            var httpClient = httpClientFactory.CreateClient();
+            using var result = await httpClient.GetAsync(url);
+            if (result.IsSuccessStatusCode)
+                file.Content = await result.Content.ReadAsByteArrayAsync();
+            else
+                return BadRequest("");
 
             var dto = await _service.SaveImage(file);
             return Created(GenerateUri(dto), dto.Id);
             //return File(file, "image/jpg");
         }
         [HttpPost("urls")]
-        public async Task<IActionResult> Post([FromBody] List<string> urls)
+        public async Task<IActionResult> Post([FromBody] List<string> urls, [FromServices] IHttpClientFactory httpClientFactory)
         {
             var files = new List<File>();
-            using (var client = new HttpClient())
+            var httpClient = httpClientFactory.CreateClient();
+            var requests = urls.Select(url => httpClient.GetAsync(url)).ToArray();
+            Task.WaitAll(requests);
+            if (requests.Any(r => !r.Result.IsSuccessStatusCode)) return BadRequest("");
+            var contents = requests.Select(request => request.Result.Content.ReadAsByteArrayAsync()).ToArray();
+            Task.WaitAll(contents);
+            files = contents.Select(c => new File() {Content = c.Result}).ToList();
+            /*
+            foreach (var url in urls)
             {
-                foreach (var url in urls)
-                {
-                    using var result = await client.GetAsync(url);
-                    if (result.IsSuccessStatusCode)
-                        files.Add(new File() {Content = await result.Content.ReadAsByteArrayAsync()});
-                    else
-                        return BadRequest("");
-                }
-                
+                using var result = await httpClient.GetAsync(url);
+                if (result.IsSuccessStatusCode)
+                    files.Add(new File() { Content = await result.Content.ReadAsByteArrayAsync() });
+                else
+                    return BadRequest("");
             }
-            var dto = await _service.SaveImages(files); 
+            */
+            var dto = await _service.SaveImages(files);
             var images = ToImages(dto);
             return StatusCode(StatusCodes.Status201Created, images);
         }
@@ -203,7 +206,8 @@ namespace ImagesRestApi.Controllers
         public async Task<IActionResult> PostBase64([FromBody] List<Base64File> models)
         {
             var files = new List<File>();
-            models.ForEach(m => files.Add(new File(){
+            models.ForEach(m => files.Add(new File()
+            {
                 Content = Convert.FromBase64String(m.Base64)
             }));
             var imagesDto = await _service.SaveImages(files);
@@ -226,7 +230,7 @@ namespace ImagesRestApi.Controllers
         #endregion
 
         private string GenerateUri(ImageDTO image) =>
-            _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new {image.Id});
+            _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new { image.Id });
         private List<Image> ToImages(List<ImageDTO> images) => images.Select(i => new Image
         {
             Id = i.Id,
