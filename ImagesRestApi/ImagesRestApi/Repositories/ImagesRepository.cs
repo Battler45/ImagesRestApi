@@ -32,12 +32,12 @@ namespace ImagesRestApi.Repositories
 
         public async Task<ImageDTO> GetImageAsync(Guid id)
         {
-            var dbImage = await Images.SingleOrDefaultAsync(i => i.Id == id);
+            var dbImage = await Images.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id);
             return _mapper.Map<ImageDTO>(dbImage);
         }
         public async Task<List<ImageDTO>> GetImagesAsync(IEnumerable<Guid> ids)
         {
-            var dbImages = await Images.Where(i => ids.Contains(i.Id)).ToListAsync();
+            var dbImages = await Images.AsNoTracking().Where(i => ids.Contains(i.Id)).ToListAsync();
             return _mapper.Map<List<ImageDTO>>(dbImages);
         }
         public async Task<int> SaveImages(IEnumerable<ImageDTO> imagesDto)

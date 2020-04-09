@@ -16,7 +16,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
-using Newtonsoft.Json;
 using File = ImagesRestApi.Models.File;
 
 namespace ImagesRestApi.Controllers
