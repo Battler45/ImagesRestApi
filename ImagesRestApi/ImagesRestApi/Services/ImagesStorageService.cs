@@ -16,7 +16,7 @@ namespace ImagesRestApi.Services
         private readonly IFileWrapper _file;
         private readonly IPathWrapper _path;
 
-        private readonly string _targetFilePath;
+        private readonly string _targetFileStoragePath;
 
 
         public ImagesStorageService(IConfiguration config, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path,
@@ -26,16 +26,17 @@ namespace ImagesRestApi.Services
             _file = file ?? throw new ArgumentNullException(nameof(file));
             _path = path ?? throw new ArgumentNullException(nameof(path));
 
-            _targetFilePath = config.GetValue<string>("StoredFilesPath");
+            _targetFileStoragePath = config.GetValue<string>("StoredFilesPath");
         }
 
         public async Task<ImageDTO> SaveImage(ProcessedStreamedFile file, Guid fileId)
         {
             var folderName = Guid.NewGuid().ToString();// Don't trust the file name sent by the client. To display
-            var trustedFileNameForFileStorage = $"original{file.Extension}";//var fileFolder = $"{_targetFilePath}\\{fileId}";
-            var filePath = _path.Combine(_targetFilePath, folderName, trustedFileNameForFileStorage);//$"{fileFolder}\\{trustedFileNameForFileStorage}";
+            var fileFolder = _path.Combine(_targetFileStoragePath, folderName); //var fileFolder = $"{_targetFileStoragePath}\\{fileId}";
+            _directory.CreateDirectory(fileFolder);
 
-            _directory.CreateDirectory(filePath);
+            var trustedFileNameForFileStorage = $"original{file.Extension}";
+            var filePath = _path.Combine(fileFolder, trustedFileNameForFileStorage);//$"{fileFolder}\\{trustedFileNameForFileStorage}";
             await using (var targetStream = _file.Create(filePath))
                 await targetStream.WriteAsync(file.Content);
             return new ImageDTO()
@@ -45,7 +46,7 @@ namespace ImagesRestApi.Services
             };
         }
 
-        public Task<byte[]> GetImage(ImageDTO image) => image == null || !_directory.Exists(image.Path) ? null : _file.ReadAllBytesAsync(image.Path);
+        public async Task<byte[]> GetImage(ImageDTO image) => image == null || !_file.Exists(image.Path) ? null : await _file.ReadAllBytesAsync(image.Path);
         public void DeleteImageDirectory(ImageDTO image) => _directory.Delete(_path.GetDirectoryName(image.Path), true);
     }
 }

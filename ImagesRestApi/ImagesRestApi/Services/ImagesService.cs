@@ -50,6 +50,7 @@ namespace ImagesRestApi.Services
         public async Task<Image> GetImageAsync(Guid id)
         {
             var imageDto = await _images.GetImageAsync(id);
+
             var imageFile = await _imagesStorage.GetImage(imageDto);
             if (imageFile == null) return null;
             _contentTypeProvider.TryGetContentType(imageDto.Path, out var contentType);
@@ -201,6 +202,7 @@ namespace ImagesRestApi.Services
             // For more information, see the topic that accompanies 
             // this sample.
             //TODO: create update method to not use repository(not changed path)
+            //TODO: create update method to ProcessStreamedFile to not use _contentTypeProvider
             var streamedFile = await FileHelpers.ProcessStreamedFile(reader, contentType, _permittedExtensions, _fileSizeLimit, _contentTypeProvider);
             image = await _imagesStorage.SaveImage(streamedFile, imageId);
             await _images.UpdateImage(image);
