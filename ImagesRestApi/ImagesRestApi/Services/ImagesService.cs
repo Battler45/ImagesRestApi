@@ -1,6 +1,5 @@
 ﻿using ImagesRestApi.Models;
 using ImagesRestApi.Repositories.Interfaces;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,8 +13,6 @@ using Microsoft.Extensions.Configuration;
 using ImagesRestApi.Utilities;
 using ImagesRestApi.Wrappers;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.Net.Http.Headers;
 using File = ImagesRestApi.Models.File;
 
 namespace ImagesRestApi.Services
@@ -23,7 +20,6 @@ namespace ImagesRestApi.Services
     public class ImagesService : IImagesService
     {
         private readonly IImagesRepository _images;
-        private readonly ILogger<ImagesService> _logger;
 
         //wrappers
         private readonly IDirectoryWrapper _directory;
@@ -36,11 +32,10 @@ namespace ImagesRestApi.Services
         private readonly long _fileSizeLimit;
         private readonly string _targetFilePath;
 
-        public ImagesService(IImagesRepository images, ILogger<ImagesService> logger, IConfiguration config, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path, 
+        public ImagesService(IImagesRepository images, IConfiguration config, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path, 
             IContentDispositionHeaderValueWrapper contentDispositionHeaderValue, IContentTypeProvider contentTypeProvider)
         {
             _images = images ?? throw new ArgumentNullException(nameof(images)); 
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _directory = directory ?? throw new ArgumentNullException(nameof(directory));
             _file = file ?? throw new ArgumentNullException(nameof(file));
             _path = path ?? throw new ArgumentNullException(nameof(path));
@@ -164,11 +159,7 @@ namespace ImagesRestApi.Services
             while (section != null)
             {
                 var image = await SaveSection(section, _permittedExtensions, _fileSizeLimit, _contentDispositionHeaderValue);
-                if (image != null)
-                {
-                    images.Add(image);
-                    _logger.LogInformation($"Saved new image to '{image.Path}'");
-                }
+                if (image != null) images.Add(image);
                 section = await requestReader.ReadNextSectionAsync();
             }
             await _images.SaveImages(images);

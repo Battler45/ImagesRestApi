@@ -62,6 +62,7 @@ namespace ImagesRestApi.Utilities
             }
         }
 
+        #region Process file
         public static async Task<ProcessedStreamedFile> ProcessStreamedFile(MultipartSection section, ContentDispositionHeaderValue contentDisposition,
             List<string> permittedExtensions, long sizeLimit)
         {
@@ -88,8 +89,8 @@ namespace ImagesRestApi.Utilities
             // Check if the file is empty or exceeds the size limit.
             ValidateFileSize(memoryStream.Length, sizeLimit);
             var extensionBySignature = GetFileExtensionBySignature(memoryStream);
-            if (!permittedExtensions.Contains(extensionBySignature) 
-                || !contentTypeProvider.TryGetContentType(extensionBySignature, out var contentTypeBySignature) 
+            if (!permittedExtensions.Contains(extensionBySignature)
+                || !contentTypeProvider.TryGetContentType(extensionBySignature, out var contentTypeBySignature)
                 || contentTypeBySignature != contentType)
                 throw new InvalidDataException("The file type isn't permitted or the file's signature doesn't match the file's extension.");
             return new ProcessedStreamedFile()
@@ -112,6 +113,9 @@ namespace ImagesRestApi.Utilities
                 Extension = extensionBySignature
             };
         }
+        #endregion
+
+        #region File extensions
         private static bool IsValidFileExtensionAndSignature(string fileExtension, Stream data, List<string> permittedExtensions)
         {
             if (data == null || data.Length == 0) return false;
@@ -151,5 +155,6 @@ namespace ImagesRestApi.Utilities
                 signatures.Value.Any(signature => signatureData.Take(signature.Length).SequenceEqual(signature)));
             return fileSignature.Key;
         }
+        #endregion
     }
 }

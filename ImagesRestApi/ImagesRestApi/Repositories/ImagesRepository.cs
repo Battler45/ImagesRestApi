@@ -8,14 +8,12 @@ using ImagesRestApi.Databases.Images.Entities;
 using ImagesRestApi.DTO;
 using ImagesRestApi.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace ImagesRestApi.Repositories
 {
     public class ImagesRepository : IImagesRepository
     {
         private readonly ImagesContext _context;
-        private readonly ILogger<ImagesRepository> _logger;
         private readonly IMapper _mapper;
 
         private IQueryable<Image> _images;
@@ -23,10 +21,9 @@ namespace ImagesRestApi.Repositories
         {
             get { return _images ??= _context.Images; }
         }
-        public ImagesRepository(ImagesContext context, ILogger<ImagesRepository> logger, IMapper mapper)
+        public ImagesRepository(ImagesContext context, IMapper mapper)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
@@ -56,15 +53,13 @@ namespace ImagesRestApi.Repositories
         {
             var ids = imagesDto.Select(i => i.Id).ToList();
             var dbImages = await Images.Where(i => ids.Contains(i.Id)).ToListAsync();
-            var images = _mapper.Map(imagesDto, dbImages);
-            //_context.UpdateRange(images);
+            _mapper.Map(imagesDto, dbImages);
             return await _context.SaveChangesAsync();
         }
         public async Task<int> UpdateImage(ImageDTO imageDto)
         {
             var dbImage = await Images.Where(i => i.Id == imageDto.Id).SingleOrDefaultAsync();
-            var image = _mapper.Map(imageDto, dbImage);
-            //_context.Update(image);
+            _mapper.Map(imageDto, dbImage);
             return await _context.SaveChangesAsync();
         }
         public async Task<int> DeleteImage(Guid imageId)
