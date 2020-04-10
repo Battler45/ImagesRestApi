@@ -29,7 +29,7 @@ namespace ImagesRestApi.Services
         private readonly List<string> _permittedExtensions;
         private readonly long _fileSizeLimit;
 
-        public ImagesService(IImagesRepository images, IConfiguration config, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path, 
+        public ImagesService(IImagesRepository images, IConfiguration config, IFileWrapper file, IPathWrapper path, 
             IContentDispositionHeaderValueWrapper contentDispositionHeaderValue, IContentTypeProvider contentTypeProvider,
             IImagesStorageService imagesStorage)
         {
