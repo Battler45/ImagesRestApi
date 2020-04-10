@@ -30,7 +30,6 @@ namespace ImageRestApi.UnitTests
             var options = new DbContextOptionsBuilder<ImagesContext>()
                 .UseInMemoryDatabase(TestImagesDatabaseName)
                 .Options;
-            var loggerMock = new Mock<ILogger<ImagesRepository>>();
             var mapperMock = new Mock<IMapper>();
                 mapperMock.Setup(m => m.Map<IEnumerable<Image>>(It.IsAny<IEnumerable<ImageDTO>>()))
                     .Returns(fakeImagesEntities);
@@ -38,7 +37,7 @@ namespace ImageRestApi.UnitTests
             //Act
             await using (var context = new ImagesContext(options))
             {
-                var repository = new ImagesRepository(context, loggerMock.Object, mapperMock.Object);
+                var repository = new ImagesRepository(context, mapperMock.Object);
                 await repository.SaveImages(expectedImagesDto);
             }
 
@@ -66,13 +65,12 @@ namespace ImageRestApi.UnitTests
                 await context.AddRangeAsync(fakeImagesEntities);
                 await context.SaveChangesAsync();  
             }
-            var loggerMock = new Mock<ILogger<ImagesRepository>>();
             var mapperMock = new Mock<IMapper>();
 
             //Act
             await using (var context = new ImagesContext(options))
             {
-                var repository = new ImagesRepository(context, loggerMock.Object, mapperMock.Object);
+                var repository = new ImagesRepository(context, mapperMock.Object);
                 await repository.DeleteImage(deletedRandomFakeEntityId);
             }
 
@@ -103,13 +101,12 @@ namespace ImageRestApi.UnitTests
                 await context.AddRangeAsync(fakeImagesEntities);
                 await context.SaveChangesAsync();
             }
-            var loggerMock = new Mock<ILogger<ImagesRepository>>();
             var mapperMock = new Mock<IMapper>();
 
             //Act
             await using (var context = new ImagesContext(options))
             {
-                var repository = new ImagesRepository(context, loggerMock.Object, mapperMock.Object);
+                var repository = new ImagesRepository(context, mapperMock.Object);
                 await repository.DeleteImages(deletedRandomFakeEntities.Select(e => e.Id));
             }
 

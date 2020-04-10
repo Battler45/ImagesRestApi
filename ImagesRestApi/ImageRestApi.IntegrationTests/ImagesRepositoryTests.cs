@@ -34,7 +34,6 @@ namespace ImageRestApi.IntegrationTests
                 await context.AddRangeAsync(fakeImagesEntities);
                 await context.SaveChangesAsync();
             }
-            var loggerMock = new Mock<ILogger<ImagesRepository>>();
             var mapperConfig = new MapperConfiguration(cfg =>
             {
                 cfg.AddProfile(new ImagesProfile());
@@ -46,7 +45,7 @@ namespace ImageRestApi.IntegrationTests
             ImageDTO resultFakeEtitiy;
             await using (var context = new ImagesContext(options))
             {
-                var repository = new ImagesRepository(context, loggerMock.Object, mapper);
+                var repository = new ImagesRepository(context, mapper);
                 resultFakeEtitiy = await repository.GetImageAsync(expected.Id);
             }
 
@@ -74,14 +73,13 @@ namespace ImageRestApi.IntegrationTests
                 await context.AddRangeAsync(fakeImagesEntities);
                 await context.SaveChangesAsync();
             }
-            var loggerMock = new Mock<ILogger<ImagesRepository>>();
             var mapper = new MapperConfiguration(cfg =>cfg.AddProfile(new ImagesProfile())).CreateMapper();
 
             //Act
             List<ImageDTO> resultFakeEtities;
             await using (var context = new ImagesContext(options))
             {
-                var repository = new ImagesRepository(context, loggerMock.Object, mapper);
+                var repository = new ImagesRepository(context, mapper);
                 resultFakeEtities = await repository.GetImagesAsync(expected.Select(e => e.Id));
             }
 
