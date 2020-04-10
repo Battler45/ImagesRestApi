@@ -24,12 +24,12 @@ namespace ImagesRestApi
         {
             services.AddControllers();
             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-
+            //TODO: services.AddDbContextPool<>()
             services.AddDbContext<ImagesContext>(options => options.UseInMemoryDatabase("Images"));
 
             services.AddScoped<IImagesRepository, ImagesRepository>();
-
             services.AddScoped<IImagesService, ImagesService>();
+
             services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
             services.AddHttpClient<IUploader, Uploader>()
                 .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, _ => TimeSpan.FromMilliseconds(600)));
