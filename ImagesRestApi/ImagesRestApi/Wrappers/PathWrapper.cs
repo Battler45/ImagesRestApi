@@ -11,11 +11,13 @@ namespace ImagesRestApi.Wrappers
     {
         string? GetDirectoryName(string? path);
         string? GetExtension(string? path);
+        string Combine(params string[] paths);
     }
 
     public class PathWrapper : IPathWrapper
     {
         public string? GetDirectoryName(string? path) => Path.GetDirectoryName(path);
         public string? GetExtension(string? path) => Path.GetExtension(path);
+        public string Combine(params string[] paths) => Path.Combine(paths);
     }
 }

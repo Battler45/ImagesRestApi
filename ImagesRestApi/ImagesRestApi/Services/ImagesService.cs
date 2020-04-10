@@ -22,30 +22,23 @@ namespace ImagesRestApi.Services
         private readonly IImagesRepository _images;
 
         //wrappers
-        private readonly IDirectoryWrapper _directory;
-        private readonly IFileWrapper _file;
-        private readonly IPathWrapper _path;
         private readonly IContentDispositionHeaderValueWrapper _contentDispositionHeaderValue;
         private readonly IContentTypeProvider _contentTypeProvider;
+        private readonly IImagesStorageService _imagesStorage;
 
         private readonly List<string> _permittedExtensions;
         private readonly long _fileSizeLimit;
-        private readonly string _targetFilePath;
 
         public ImagesService(IImagesRepository images, IConfiguration config, IDirectoryWrapper directory, IFileWrapper file, IPathWrapper path, 
-            IContentDispositionHeaderValueWrapper contentDispositionHeaderValue, IContentTypeProvider contentTypeProvider)
+            IContentDispositionHeaderValueWrapper contentDispositionHeaderValue, IContentTypeProvider contentTypeProvider,
+            IImagesStorageService imagesStorage)
         {
             _images = images ?? throw new ArgumentNullException(nameof(images)); 
-            _directory = directory ?? throw new ArgumentNullException(nameof(directory));
-            _file = file ?? throw new ArgumentNullException(nameof(file));
-            _path = path ?? throw new ArgumentNullException(nameof(path));
             _contentDispositionHeaderValue = contentDispositionHeaderValue ?? throw new ArgumentNullException(nameof(contentDispositionHeaderValue));
             _contentTypeProvider = contentTypeProvider ?? throw new ArgumentNullException(nameof(contentTypeProvider));
+            _imagesStorage = imagesStorage ?? throw new ArgumentNullException(nameof(imagesStorage));
 
             _fileSizeLimit = config.GetValue<long>("FileSizeLimit");
-
-            // To save physical files to a path provided by configuration:
-            _targetFilePath = config.GetValue<string>("StoredFilesPath");
 
             _permittedExtensions = config.GetSection("PermittedExtensions").AsEnumerable()
                 .Where(p => p.Value != null)
@@ -57,8 +50,8 @@ namespace ImagesRestApi.Services
         public async Task<Image> GetImageAsync(Guid id)
         {
             var imageDto = await _images.GetImageAsync(id);
-            if (imageDto == null || _directory.Exists(imageDto.Path)) return null;
-            var imageFile = await _file.ReadAllBytesAsync(imageDto.Path);
+            var imageFile = await _imagesStorage.GetImage(imageDto);
+            if (imageFile == null) return null;
             _contentTypeProvider.TryGetContentType(imageDto.Path, out var contentType);
             return new Image()
             {
@@ -81,7 +74,7 @@ namespace ImagesRestApi.Services
             // For more information, see the topic that accompanies 
             // this sample.
             var streamedFile = await FileHelpers.ProcessStreamedFile(reader, contentType, _permittedExtensions, _fileSizeLimit, _contentTypeProvider);
-            var image = await SaveImage(streamedFile);
+            var image = await _imagesStorage.SaveImage(streamedFile, Guid.NewGuid());
             await _images.SaveImage(image);
             return image;
         }
@@ -97,7 +90,7 @@ namespace ImagesRestApi.Services
             // For more information, see the topic that accompanies 
             // this sample.
             var streamedFile = FileHelpers.ProcessFile(file, _permittedExtensions, _fileSizeLimit);
-            var image = await SaveImage(streamedFile);
+            var image = await _imagesStorage.SaveImage(streamedFile, Guid.NewGuid());
             await _images.SaveImage(image);
             return image;
         }
@@ -112,44 +105,10 @@ namespace ImagesRestApi.Services
             // For more information, see the topic that accompanies 
             // this sample.
             var processedFiles = files.Select(f => FileHelpers.ProcessFile(f, _permittedExtensions, _fileSizeLimit));
-            var saveImages = processedFiles.Select(SaveImage);
+            var saveImages = processedFiles.Select(pf => _imagesStorage.SaveImage(pf, Guid.NewGuid()));
             var images = await Task.WhenAll(saveImages);
             await _images.SaveImages(images);
             return images.ToList();
-        }
-        //fileSERVICE
-        private async Task<ImageDTO> SaveImage(ProcessedStreamedFile file)
-        {
-            var fileId = Guid.NewGuid();
-            // Don't trust the file name sent by the client. To display
-            var trustedFileNameForFileStorage = $"original{file.Extension}";
-            var fileFolder = $"{_targetFilePath}\\{fileId}";
-            var filePath = $"{fileFolder}\\{trustedFileNameForFileStorage}";
-
-            _directory.CreateDirectory(fileFolder);
-            await using (var targetStream = _file.Create(filePath))
-                await targetStream.WriteAsync(file.Content);
-            return new ImageDTO()
-            {
-                Id = fileId,
-                Path = filePath
-            };
-        }
-        private async Task<ImageDTO> SaveImage(ProcessedStreamedFile file, Guid fileId)
-        {
-            // Don't trust the file name sent by the client. To display
-            var trustedFileNameForFileStorage = $"original{file.Extension}";
-            var fileFolder = $"{_targetFilePath}\\{fileId}";
-            var filePath = $"{fileFolder}\\{trustedFileNameForFileStorage}";
-
-            _directory.CreateDirectory(fileFolder);
-            await using (var targetStream = _file.Create(filePath))
-                await targetStream.WriteAsync(file.Content);
-            return new ImageDTO()
-            {
-                Id = fileId,
-                Path = filePath
-            };
         }
 
         public async Task<List<ImageDTO>> SaveImages(MultipartReader requestReader)
@@ -184,26 +143,25 @@ namespace ImagesRestApi.Services
                 // For more information, see the topic that accompanies 
                 // this sample.
                 var streamedFile = await FileHelpers.ProcessStreamedFile(section, contentDisposition, permittedExtensions, fileSizeLimit);
-                // Don't trust the file name sent by the client. To display
-                return await SaveImage(streamedFile);
+                var imageId = Guid.NewGuid();
+                return await _imagesStorage.SaveImage(streamedFile, imageId);
             }
         }
         #endregion
 
         #region Delete
-        private void DeleteImageDirectory(ImageDTO image) => _directory.Delete(_path.GetDirectoryName(image.Path), true);
 
         public async Task<int> DeleteImages(IEnumerable<Guid> imagesIds)
         {
             var images = await _images.GetImagesAsync(imagesIds);
-            images.ForEach(DeleteImageDirectory);
+            images.ForEach(_imagesStorage.DeleteImageDirectory);
             return await _images.DeleteImages(imagesIds);
         }
 
         public async Task<int> DeleteImage(Guid imageId)
         {
             var image = await _images.GetImageAsync(imageId);
-            DeleteImageDirectory(image);
+            _imagesStorage.DeleteImageDirectory(image);
             return await _images.DeleteImage(imageId);
         }
         #endregion
@@ -212,7 +170,7 @@ namespace ImagesRestApi.Services
         public async Task<List<ImageDTO>> UpdateImages(IEnumerable<Image> files)
         {
             var images = await _images.GetImagesAsync(files.Select(i => i.Id));
-            images.ForEach(DeleteImageDirectory);
+            images.ForEach(_imagesStorage.DeleteImageDirectory);
             // **WARNING!**
             // In the following example, the file is saved without
             // scanning the file's contents. In most production
@@ -221,7 +179,8 @@ namespace ImagesRestApi.Services
             // for download or for use by other systems. 
             // For more information, see the topic that accompanies 
             // this sample.
-            var saveImages = files.Select(f => SaveImage(FileHelpers.ProcessFile(f, _permittedExtensions, _fileSizeLimit), f.Id));
+            //TODO: create update method to not use repository(not changed path)
+            var saveImages = files.Select(f => _imagesStorage.SaveImage(FileHelpers.ProcessFile(f, _permittedExtensions, _fileSizeLimit), f.Id));
             images = (await Task.WhenAll(saveImages)).ToList();
             await _images.UpdateImages(images);
             return images;
@@ -232,7 +191,7 @@ namespace ImagesRestApi.Services
         public async Task<ImageDTO> UpdateImage(PipeReader reader, Guid imageId, string contentType)
         {
             var image = await _images.GetImageAsync(imageId);
-            DeleteImageDirectory(image);
+            _imagesStorage.DeleteImageDirectory(image);
             // **WARNING!**
             // In the following example, the file is saved without
             // scanning the file's contents. In most production
@@ -241,8 +200,9 @@ namespace ImagesRestApi.Services
             // for download or for use by other systems. 
             // For more information, see the topic that accompanies 
             // this sample.
+            //TODO: create update method to not use repository(not changed path)
             var streamedFile = await FileHelpers.ProcessStreamedFile(reader, contentType, _permittedExtensions, _fileSizeLimit, _contentTypeProvider);
-            image = await SaveImage(streamedFile, imageId);
+            image = await _imagesStorage.SaveImage(streamedFile, imageId);
             await _images.UpdateImage(image);
             return image;
         }
@@ -256,7 +216,8 @@ namespace ImagesRestApi.Services
                 image = await GetImage(section, _permittedExtensions, _fileSizeLimit, _contentDispositionHeaderValue);
                 section = await requestReader.ReadNextSectionAsync();
             }
-            var imageDto = await SaveImage(image, imageId);
+            //TODO: create update method to not use repository(not changed path)
+            var imageDto = await _imagesStorage.SaveImage(image, imageId);
             await _images.UpdateImage(imageDto);
             return imageDto;
             async Task<ProcessedStreamedFile> GetImage(MultipartSection section, List<string> permittedExtensions, long fileSizeLimit,

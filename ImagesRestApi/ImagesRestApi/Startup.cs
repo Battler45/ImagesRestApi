@@ -26,8 +26,9 @@ namespace ImagesRestApi
             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             //TODO: services.AddDbContextPool<>()
             services.AddDbContext<ImagesContext>(options => options.UseInMemoryDatabase("Images"));
-
+            
             services.AddScoped<IImagesRepository, ImagesRepository>();
+            services.AddScoped<IImagesStorageService, ImagesStorageService>();
             services.AddScoped<IImagesService, ImagesService>();
 
             services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
