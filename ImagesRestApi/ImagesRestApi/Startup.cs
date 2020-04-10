@@ -13,6 +13,7 @@ using ImagesRestApi.Services.Interfaces;
 using ImagesRestApi.Wrappers;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using Polly;
 
 namespace ImagesRestApi
 {
@@ -30,8 +31,8 @@ namespace ImagesRestApi
 
             services.AddScoped<IImagesService, ImagesService>();
             services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
-            services.AddHttpClient();
-
+            services.AddHttpClient<IUploader, Uploader>()
+                .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, _ => TimeSpan.FromMilliseconds(600)));
 
             //wrappers
             services.AddSingleton<IDirectoryWrapper, DirectoryWrapper>();

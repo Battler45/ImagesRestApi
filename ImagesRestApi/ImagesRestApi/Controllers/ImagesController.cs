@@ -109,47 +109,37 @@ namespace ImagesRestApi.Controllers
             return images.Count == 1 ? Created(images.First().Uri, images.First().Id) : StatusCode(StatusCodes.Status201Created, images);
         }
 
-
+        #region Post by urls
         [HttpPost("url")]
-        public async Task<IActionResult> Post([FromBody]string url, [FromServices] IHttpClientFactory httpClientFactory)
+        public async Task<IActionResult> Post([FromBody]string url, [FromServices] IUploader uploader)
         {
-            var file = new File();
-            var httpClient = httpClientFactory.CreateClient();
-            using var result = await httpClient.GetAsync(url);
-            if (result.IsSuccessStatusCode)
-                file.Content = await result.Content.ReadAsByteArrayAsync();
-            else
-                return BadRequest("");
-
-            var dto = await _service.SaveImage(file);
-            return Created(GenerateUri(dto), dto.Id);
-            //return File(file, "image/jpg");
+            try
+            {
+                var file = await uploader.UploadFile(url);
+                var dto = await _service.SaveImage(file);
+                return Created(GenerateUri(dto), dto.Id);
+            }
+            catch (HttpRequestException)
+            {
+                return BadRequest("the url is bad");
+            }
         }
         [HttpPost("urls")]
-        public async Task<IActionResult> Post([FromBody] List<string> urls, [FromServices] IHttpClientFactory httpClientFactory)
+        public async Task<IActionResult> Post([FromBody] List<string> urls, [FromServices] IUploader uploader)
         {
-            var files = new List<File>();
-            var httpClient = httpClientFactory.CreateClient();
-            var requests = urls.Select(url => httpClient.GetAsync(url)).ToArray();
-            Task.WaitAll(requests);
-            if (requests.Any(r => !r.Result.IsSuccessStatusCode)) return BadRequest("");
-            var contents = requests.Select(request => request.Result.Content.ReadAsByteArrayAsync()).ToArray();
-            Task.WaitAll(contents);
-            files = contents.Select(c => new File() {Content = c.Result}).ToList();
-            /*
-            foreach (var url in urls)
+            try
             {
-                using var result = await httpClient.GetAsync(url);
-                if (result.IsSuccessStatusCode)
-                    files.Add(new File() { Content = await result.Content.ReadAsByteArrayAsync() });
-                else
-                    return BadRequest("");
+                var files = await uploader.UploadFiles(urls);
+                var dto = await _service.SaveImages(files);
+                var images = ToImages(dto);
+                return StatusCode(StatusCodes.Status201Created, images);
             }
-            */
-            var dto = await _service.SaveImages(files);
-            var images = ToImages(dto);
-            return StatusCode(StatusCodes.Status201Created, images);
+            catch (HttpRequestException)
+            {
+                return BadRequest("");
+            }
         }
+        #endregion
         #endregion
 
         #region Put
@@ -181,7 +171,6 @@ namespace ImagesRestApi.Controllers
             }
             return Created(GenerateUri(imageDto), imageDto.Id);
         }
-
         #endregion
 
         #region Base64
@@ -229,12 +218,14 @@ namespace ImagesRestApi.Controllers
         //UpdateImages
         #endregion
 
+        #region Helpers
         private string GenerateUri(ImageDTO image) =>
             _linkGenerator.GetPathByAction(HttpContext, nameof(Get), values: new { image.Id });
-        private List<Image> ToImages(List<ImageDTO> images) => images.Select(i => new Image
+        private List<Image> ToImages(IEnumerable<ImageDTO> images) => images.Select(i => new Image
         {
             Id = i.Id,
             Uri = GenerateUri(i)
         }).ToList();
+        #endregion
     }
 }
