@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Net.Http;
 using ImagesRestApi.Controllers;
 using ImagesRestApi.Repositories.Interfaces;
 using ImagesRestApi.Services;
@@ -33,7 +34,15 @@ namespace ImagesRestApi
 
             services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
             services.AddHttpClient<IUploader, Uploader>()
-                .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, _ => TimeSpan.FromMilliseconds(600)));
+                .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, _ => TimeSpan.FromMilliseconds(600)))
+                //i cannot add it here, cause my service get requests from different sites
+                //but it's really useful, so i added here that comment to not to forget that option
+                //.AddTransientHttpErrorPolicy(p => p.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)))
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+                {
+                    AllowAutoRedirect = false,
+                    UseDefaultCredentials = true
+                });
 
             //wrappers
             services.AddSingleton<IDirectoryWrapper, DirectoryWrapper>();
