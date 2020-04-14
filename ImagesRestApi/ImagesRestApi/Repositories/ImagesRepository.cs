@@ -13,11 +13,11 @@ namespace ImagesRestApi.Repositories
 {
     public class ImagesRepository : IImagesRepository
     {
-        private readonly ImagesContext _context;
-        private readonly IMapper _mapper;
+        protected readonly ImagesContext _context;
+        protected readonly IMapper _mapper;
 
-        private IQueryable<Image> _images;
-        private IQueryable<Image> Images
+        protected IQueryable<Image> _images;
+        protected IQueryable<Image> Images
         {
             get { return _images ??= _context.Images; }
         }

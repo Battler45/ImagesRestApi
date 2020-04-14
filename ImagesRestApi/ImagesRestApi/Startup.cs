@@ -35,7 +35,7 @@ namespace ImagesRestApi
             services.AddSingleton<IContentTypeProvider, FileExtensionContentTypeProvider>();
             services.AddHttpClient<IUploader, Uploader>()
                 .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, _ => TimeSpan.FromMilliseconds(600)))
-                //i cannot add it here, cause my service get requests from different sites
+                //i cannot add it here, cause my service gets requests from different sites
                 //but it's really useful, so i added here that comment to not to forget that option
                 //.AddTransientHttpErrorPolicy(p => p.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)))
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
