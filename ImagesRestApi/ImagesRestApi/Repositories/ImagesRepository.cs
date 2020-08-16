@@ -30,6 +30,7 @@ namespace ImagesRestApi.Repositories
         public async Task<ImageDTO> GetImageAsync(Guid id)
         {
             var dbImage = await Images.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id);
+            var lol = Images.ToList();
             return _mapper.Map<ImageDTO>(dbImage);
         }
         public async Task<List<ImageDTO>> GetImagesAsync(IEnumerable<Guid> ids)

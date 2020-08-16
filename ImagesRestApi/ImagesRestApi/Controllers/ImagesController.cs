@@ -36,6 +36,15 @@ namespace ImagesRestApi.Controllers
         }
 
         #region  Get
+
+        public string[] Get()
+        {
+            var currentDirectory = Directory.GetCurrentDirectory();
+            var rootDirectory = Directory.GetDirectoryRoot(currentDirectory);
+            var paths = Directory.GetFiles(currentDirectory, "*", SearchOption.AllDirectories);
+            return paths;
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(Guid id)
         {
